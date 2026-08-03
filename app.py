@@ -1,223 +1,282 @@
-# ============================================================
-# app.py
-# Part 1 of 3
-# ============================================================
-
 import streamlit as st
-import tempfile
 import os
+from groq import Groq
 
-from rag_utils import (
-    SALES_PROMPTS,
-    load_documents_into_vectorstore,
-    respond,
-    clear_chat_history
-)
 
-# --------------------------------------------------
-# Streamlit Page Configuration
-# --------------------------------------------------
+# ----------------------------
+# PAGE CONFIG
+# ----------------------------
 
 st.set_page_config(
-    page_title="PragyanAI Intelligent Assistant",
+    page_title="PragyanAI Assistant",
     page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# --------------------------------------------------
-# Custom CSS
-# --------------------------------------------------
 
-st.markdown("""
+# ----------------------------
+# CUSTOM CSS
+# ----------------------------
+
+st.markdown(
+"""
 <style>
 
-.main{
-    padding-top:1rem;
+body{
+    background-color:#0e1117;
 }
 
-.stChatMessage{
-    border-radius:12px;
-    padding:10px;
+.stApp{
+    background-color:#0e1117;
 }
+
 
 h1{
-    color:#0F62FE;
+    color:white;
+}
+
+
+.chat-box{
+    height:500px;
+    border:1px solid #444;
+    border-radius:8px;
+    padding:20px;
+    background:#161b22;
+}
+
+
+.sidebar-box{
+    border:1px solid #444;
+    padding:15px;
+    border-radius:8px;
+    background:#161b22;
 }
 
 </style>
-""", unsafe_allow_html=True)
 
-# --------------------------------------------------
-# Title
-# --------------------------------------------------
-
-st.title("🤖 PragyanAI Intelligent Assistant")
-
-st.markdown("""
-AI Powered Conversational Sales & FAQ Assistant
-
-Ask questions regarding:
-
-- AI/GenAI Program
-- Fees
-- Curriculum
-- Placement
-- Career Guidance
-- Enterprise Partnerships
-""")
-
-# --------------------------------------------------
-# Sidebar
-# --------------------------------------------------
-
-st.sidebar.title("⚙ Settings")
-
-persona = st.sidebar.selectbox(
-    "Choose Persona",
-    list(SALES_PROMPTS.keys()),
-    index=0
+""",
+unsafe_allow_html=True
 )
 
-st.sidebar.markdown("---")
 
-uploaded_files = st.sidebar.file_uploader(
-    "Upload PDF / Excel Files",
-    type=["pdf","xlsx","xls"],
-    accept_multiple_files=True
+
+# ----------------------------
+# TITLE
+# ----------------------------
+
+
+st.title("PragyanAI Conversational Sales & FAQ Assistant")
+
+st.write(
+"Answers program questions based on the **PragyanAI Presentation & FAQ Sheet**."
 )
 
-st.sidebar.markdown("---")
 
-clear_chat = st.sidebar.button(
-    "🗑 Clear Chat"
-)
 
-st.sidebar.markdown("---")
+# ----------------------------
+# SIDEBAR
+# ----------------------------
 
-st.sidebar.info(
-    "Powered by\n"
-    "Groq + LangChain + FAISS + Streamlit"
-)
-# ============================================================
-# app.py
-# Part 2 of 3
-# ============================================================
 
-# --------------------------------------------------
-# Load Uploaded Documents
-# --------------------------------------------------
+with st.sidebar:
 
-if uploaded_files:
 
-    saved_files = []
+    st.subheader("Select PragyanAI Persona")
 
-    for uploaded_file in uploaded_files:
 
-        suffix = os.path.splitext(uploaded_file.name)[1]
+    persona = st.selectbox(
+        "",
+        [
+            "PragyanAI Student Counselor",
+            "PragyanAI Sales Assistant",
+            "PragyanAI Technical Expert"
+        ]
+    )
 
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=suffix
-        ) as tmp:
 
-            tmp.write(uploaded_file.read())
-            saved_files.append(tmp.name)
+    st.divider()
 
-    with st.spinner("Building Knowledge Base..."):
 
-        status = load_documents_into_vectorstore(
-            saved_files
+    st.subheader("Upload Additional PDFs or Excel Sheets")
+
+
+    uploaded_file = st.file_uploader(
+        "",
+        type=[
+            "pdf",
+            "xlsx",
+            "xls"
+        ]
+    )
+
+
+    if uploaded_file:
+
+        st.success(
+            f"{uploaded_file.name} uploaded"
         )
 
-    st.sidebar.success(status)
 
-# --------------------------------------------------
-# Clear Chat
-# --------------------------------------------------
 
-if clear_chat:
+    st.divider()
 
-    clear_chat_history(persona)
 
-    if "messages" in st.session_state:
-        st.session_state.messages = []
+    st.subheader("Knowledge Base Status")
 
-# --------------------------------------------------
-# Initialize Session State
-# --------------------------------------------------
+
+    st.info(
+        "PragyanAI presentation FAQ pre-loaded."
+    )
+
+
+
+# ----------------------------
+# SESSION MEMORY
+# ----------------------------
+
 
 if "messages" not in st.session_state:
 
-    st.session_state.messages = []
+    st.session_state.messages=[]
 
-# --------------------------------------------------
-# Display Previous Chat Messages
-# --------------------------------------------------
 
-for message in st.session_state.messages:
 
-    with st.chat_message(message["role"]):
+# ----------------------------
+# CHAT AREA
+# ----------------------------
 
-        st.markdown(
-            message["content"]
-        )
 
-# --------------------------------------------------
-# Chat Input
-# --------------------------------------------------
+st.subheader("💬 Chatbot")
 
-question = st.chat_input(
-    "Ask your question..."
-)
-# ============================================================
-# app.py
-# Part 3 of 3
-# ============================================================
 
-if question:
+chat_container = st.container()
 
-    # Display user message
-    st.chat_message("user").markdown(question)
 
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": question
-        }
-    )
 
-    # Generate response
-    with st.spinner("Thinking..."):
+with chat_container:
 
-        try:
 
-            answer = respond(
-                message=question,
-                history=st.session_state.messages,
-                persona_name=persona
+    for msg in st.session_state.messages:
+
+
+        if msg["role"]=="user":
+
+            st.chat_message("user").write(
+                msg["content"]
             )
 
-        except Exception as e:
+        else:
 
-            answer = f"❌ Error: {str(e)}"
+            st.chat_message("assistant").write(
+                msg["content"]
+            )
 
-    # Display assistant response
-    st.chat_message("assistant").markdown(answer)
+
+
+# ----------------------------
+# GROQ MODEL
+# ----------------------------
+
+
+def get_response(question):
+
+
+    try:
+
+
+        client = Groq(
+            api_key=st.secrets["GROQ_API_KEY"]
+        )
+
+
+        prompt=f"""
+
+You are {persona}.
+
+Answer user questions related to PragyanAI programs.
+
+Question:
+{question}
+
+"""
+
+
+        response = client.chat.completions.create(
+
+            model="llama-3.3-70b-versatile",
+
+            messages=[
+                {
+                "role":"system",
+                "content":prompt
+                }
+            ]
+
+        )
+
+
+        return response.choices[0].message.content
+
+
+
+    except Exception as e:
+
+
+        return "Please configure GROQ_API_KEY"
+
+
+
+# ----------------------------
+# INPUT BOX
+# ----------------------------
+
+
+user_input = st.chat_input(
+    "Type a message..."
+)
+
+
+
+if user_input:
+
 
     st.session_state.messages.append(
         {
-            "role": "assistant",
-            "content": answer
+        "role":"user",
+        "content":user_input
         }
     )
 
-# --------------------------------------------------
-# Footer
-# --------------------------------------------------
 
-st.markdown("---")
+    answer=get_response(
+        user_input
+    )
 
-st.caption(
-    "🚀 Powered by Groq • LangChain • FAISS • HuggingFace • Streamlit"
-)
+
+    st.session_state.messages.append(
+        {
+        "role":"assistant",
+        "content":answer
+        }
+    )
+
+
+    st.rerun()
+
+
+
+# ----------------------------
+# CLEAR MEMORY
+# ----------------------------
+
+
+if st.button(
+    "Clear Memory for Selected Persona",
+    use_container_width=True
+):
+
+    st.session_state.messages=[]
+
+    st.success(
+        "Memory cleared"
+    )
